@@ -2,8 +2,7 @@ package netlink
 
 import (
 	"fmt"
-
-	"github.com/vishvananda/netlink/nl"
+	//"github.com/vishvananda/netlink/nl"
 )
 
 type Filter interface {
@@ -185,12 +184,12 @@ func NewMirredAction(redirIndex int) *MirredAction {
 }
 
 // Constants used in TcU32Sel.Flags.
-const (
-	TC_U32_TERMINAL  = nl.TC_U32_TERMINAL
-	TC_U32_OFFSET    = nl.TC_U32_OFFSET
-	TC_U32_VAROFFSET = nl.TC_U32_VAROFFSET
-	TC_U32_EAT       = nl.TC_U32_EAT
-)
+//const (
+//	TC_U32_TERMINAL  = nl.TC_U32_TERMINAL
+//	TC_U32_OFFSET    = nl.TC_U32_OFFSET
+//	TC_U32_VAROFFSET = nl.TC_U32_VAROFFSET
+//	TC_U32_EAT       = nl.TC_U32_EAT
+//)
 
 // Sel of the U32 filters that contains multiple TcU32Key. This is the copy
 // and the frontend representation of nl.TcU32Sel. It is serialized into canonical
