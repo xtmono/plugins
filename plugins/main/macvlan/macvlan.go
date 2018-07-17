@@ -39,9 +39,10 @@ const (
 
 type NetConf struct {
 	types.NetConf
-	Master string `json:"master"`
-	Mode   string `json:"mode"`
-	MTU    int    `json:"mtu"`
+	Master      string `json:"master"`
+	Mode        string `json:"mode"`
+	MTU         int    `json:"mtu"`
+	PromiscMode bool   `json:"promiscMode"`
 }
 
 func init() {
@@ -88,6 +89,13 @@ func createMacvlan(conf *NetConf, ifName string, netns ns.NetNS) (*current.Inter
 	m, err := netlink.LinkByName(conf.Master)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup master %q: %v", conf.Master, err)
+	}
+
+	// Make master link to promisc mode
+	if conf.PromiscMode {
+		if err := netlink.SetPromiscOn(m); err != nil {
+			return nil, fmt.Errorf("could not set promiscuous mode on %q: %v", conf.Master, err)
+		}
 	}
 
 	// due to kernel bug we have to create with tmpName or it might
