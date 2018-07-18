@@ -31,6 +31,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/utils/sysctl"
 	"github.com/j-keck/arping"
 	"github.com/vishvananda/netlink"
+
+	"github.com/coreos/go-systemd/journal"
 )
 
 const (
@@ -61,6 +63,23 @@ func loadConf(bytes []byte) (*NetConf, string, error) {
 		return nil, "", fmt.Errorf(`"master" field is required. It specifies the host interface name to virtualize`)
 	}
 	return n, n.CNIVersion, nil
+}
+
+func logParam(args *skel.CmdArgs) {
+	journal.Print(journal.PriInfo, "  ContainerID: %s", args.ContainerID)
+	journal.Print(journal.PriInfo, "  Netns: %s", args.Netns)
+	journal.Print(journal.PriInfo, "  IfName: %s", args.IfName)
+	journal.Print(journal.PriInfo, "  Args: %s", args.Args)
+	journal.Print(journal.PriInfo, "  Path: %s", args.Path)
+	journal.Print(journal.PriInfo, "  StdinData: %s", string(args.StdinData))
+}
+
+func ResultString(r *types.Result) string {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 func modeFromString(s string) (netlink.MacvlanMode, error) {
@@ -153,6 +172,9 @@ func createMacvlan(conf *NetConf, ifName string, netns ns.NetNS) (*current.Inter
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
+	journal.Print(journal.PriInfo, "Macvlan CNI Add")
+	logParam(args)
+
 	n, cniVersion, err := loadConf(args.StdinData)
 	if err != nil {
 		return err
@@ -230,10 +252,19 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	result.DNS = n.DNS
 
-	return types.PrintResult(result, cniVersion)
+	newResult, err := result.GetAsVersion(cniVersion)
+	if err != nil {
+		return err
+	}
+	journal.Print(journal.PriInfo, "CNI Response: %s", ResultString(&newResult))
+	return newResult.Print()
+	//return types.PrintResult(result, cniVersion)
 }
 
 func cmdDel(args *skel.CmdArgs) error {
+	journal.Print(journal.PriInfo, "Host-device CNI Del")
+	logParam(args)
+
 	n, _, err := loadConf(args.StdinData)
 	if err != nil {
 		return err
