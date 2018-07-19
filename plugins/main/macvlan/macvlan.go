@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"runtime"
 
 	"github.com/containernetworking/cni/pkg/skel"
@@ -250,7 +251,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	result.DNS = n.DNS
+	if reflect.DeepEqual(result.DNS, types.DNS{}) {
+		result.DNS = n.DNS
+	}
 
 	newResult, err := result.GetAsVersion(cniVersion)
 	if err != nil {

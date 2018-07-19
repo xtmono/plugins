@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -140,7 +141,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 		&current.Interface{
 			Name:    args.IfName,
 			Mac:     contDev.Attrs().HardwareAddr.String(),
-			Sandbox: containerNs.Path()}}
+			Sandbox: containerNs.Path()},
+	}
 
 	for _, ipc := range result.IPs {
 		// All addresses apply to the container interface
@@ -157,7 +159,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	result.DNS = cfg.DNS
+	if reflect.DeepEqual(result.DNS, types.DNS{}) {
+		result.DNS = cfg.DNS
+	}
 
 	newResult, err := result.GetAsVersion(cfg.CNIVersion)
 	if err != nil {
