@@ -121,10 +121,12 @@ func cmdAdd(args *skel.CmdArgs) error {
 		convMacAddr := strings.NewReplacer(":", "-").Replace(macAddr.String())
 		err := client.Put(convMacAddr, dhcpReq, dhcpResp)
 		if err == nil {
-			ipConfig := current.IPConfig{Version: "4"}
-			dnsConfig := types.DNS{}
+			// Make result
+			result := &current.Result{}
 
 			// DHCP IP address
+			ipConfig := current.IPConfig{Version: "4"}
+			result.IPs = append(result.IPs, &ipConfig)
 			if ipAddr := net.ParseIP(dhcpResp.ClientIp); ipAddr != nil {
 				ipConfig.Address.IP = ipAddr
 			} else {
@@ -142,23 +144,21 @@ func cmdAdd(args *skel.CmdArgs) error {
 			if len(dhcpResp.Router) > 0 && dhcpResp.Router[0] != "" {
 				if router := net.ParseIP(dhcpResp.Router[0]); router != nil {
 					ipConfig.Gateway = router
+					result.Routes = append(result.Routes, &types.Route{
+						Dst: net.IPNet{IP: net.IPv4zero, Mask: net.IPMask(net.IPv4zero)},
+						GW:  router,
+					})
 				} else {
 					return fmt.Errorf("invalid router: %s", dhcpResp.Router[0])
 				}
 			}
 
-			for n, d := range dhcpResp.DNS {
-				if dns := net.ParseIP(d); dns != nil {
-					dnsConfig.Nameservers[n] = d
+			for _, dns := range dhcpResp.DNS {
+				if net.ParseIP(dns) != nil {
+					result.DNS.Nameservers = append(result.DNS.Nameservers, dns)
 				} else {
-					return fmt.Errorf("invalid dns: %s", d)
+					return fmt.Errorf("invalid dns: %s", dns)
 				}
-			}
-
-			// Make result
-			result := &current.Result{
-				IPs: []*current.IPConfig{&ipConfig},
-				DNS: dnsConfig,
 			}
 
 			newResult, err := result.GetAsVersion(conf.CNIVersion)
