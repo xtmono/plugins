@@ -258,6 +258,14 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "076b546753157f758b316e59bcb51e6807c04057"
+		},
+		{
+			"ImportPath": "k8s.io/client-go/kubernetes",
+			"Rev": "7d04d0e2a0a1a4d4a1cd6baa432a2301492e4e65"
+		},
+		{
+			"ImportPath": "k8s.io/client-go/tools/clientcmd",
+			"Rev": "7d04d0e2a0a1a4d4a1cd6baa432a2301492e4e65"
 		}
 	]
 }
