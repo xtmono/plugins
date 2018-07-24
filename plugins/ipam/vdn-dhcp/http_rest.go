@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/coreos/go-systemd/journal"
 )
 
 type RestClient struct {
@@ -16,9 +18,13 @@ type RestClient struct {
 	httpClient *http.Client
 }
 
-func NewRestClient(user, password, path string) *RestClient {
+func NewRestClient(path, user, password string) *RestClient {
+	baseUrl, err := url.Parse(path)
+	if err != nil {
+		return nil
+	}
 	return &RestClient{
-		baseUrl:    &url.URL{Path: path},
+		baseUrl:    baseUrl,
 		user:       user,
 		password:   password,
 		httpClient: &http.Client{}}
@@ -30,7 +36,7 @@ func (c *RestClient) Get(path string, resp interface{}) error {
 		return err
 	}
 	r, err := c.do(req, resp)
-	if r.StatusCode != 200 {
+	if err == nil && r.StatusCode != 200 {
 		err = fmt.Errorf("rest server response error: %s", r.Status)
 	}
 	return err
@@ -42,7 +48,7 @@ func (c *RestClient) Post(path string, body interface{}, resp interface{}) error
 		return err
 	}
 	r, err := c.do(req, resp)
-	if r.StatusCode != 200 {
+	if err == nil && r.StatusCode != 200 {
 		err = fmt.Errorf("rest server response error: %s", r.Status)
 	}
 	return err
@@ -54,27 +60,27 @@ func (c *RestClient) Put(path string, body interface{}, resp interface{}) error 
 		return err
 	}
 	r, err := c.do(req, resp)
-	if r.StatusCode != 200 {
+	if err == nil && r.StatusCode != 200 {
 		err = fmt.Errorf("rest server response error: %s", r.Status)
 	}
 	return err
 }
 
 func (c *RestClient) Delete(path string) error {
-	req, err := c.newRequest("GET", path, nil)
+	req, err := c.newRequest("DELETE", path, nil)
 	if err != nil {
 		return err
 	}
 	r, err := c.do(req, nil)
-	if r.StatusCode != 200 {
+	if err == nil && r.StatusCode != 200 {
 		err = fmt.Errorf("rest server response error: %s", r.Status)
 	}
 	return err
 }
 
 func (c *RestClient) newRequest(method, path string, body interface{}) (*http.Request, error) {
-	rel := &url.URL{Path: path}
-	u := c.baseUrl.ResolveReference(rel)
+	reqUrl := c.baseUrl.ResolveReference(&url.URL{Path: url.PathEscape(path)})
+
 	var buf io.ReadWriter
 	if body != nil {
 		buf = new(bytes.Buffer)
@@ -83,7 +89,9 @@ func (c *RestClient) newRequest(method, path string, body interface{}) (*http.Re
 			return nil, err
 		}
 	}
-	req, err := http.NewRequest(method, u.String(), buf)
+
+	journal.Print(journal.PriInfo, "newRequest: %s", reqUrl.String())
+	req, err := http.NewRequest(method, reqUrl.String(), buf)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +99,7 @@ func (c *RestClient) newRequest(method, path string, body interface{}) (*http.Re
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Rest client")
+	req.Header.Set("User-Agent", "CNI-Plugin")
 	req.SetBasicAuth(c.user, c.password)
 	return req, nil
 }
