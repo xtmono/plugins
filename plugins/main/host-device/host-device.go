@@ -82,7 +82,7 @@ func ResultString(r *types.Result) string {
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
-	journal.Print(journal.PriInfo, "Host-device CNI Add")
+	journal.Print(journal.PriWarning, "Host-device CNI Add")
 	logParam(args)
 
 	cfg, err := loadConf(args.StdinData)
@@ -167,13 +167,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-	journal.Print(journal.PriInfo, "CNI Response: %s", ResultString(&newResult))
+	journal.Print(journal.PriWarning, "Host-device Response: %s", ResultString(&newResult))
 	return newResult.Print()
 	//return types.PrintResult(result, cfg.CNIVersion)
 }
 
 func cmdDel(args *skel.CmdArgs) error {
-	journal.Print(journal.PriInfo, "Host-device CNI Del")
+	journal.Print(journal.PriWarning, "Host-device CNI Del")
 	logParam(args)
 
 	cfg, err := loadConf(args.StdinData)
@@ -243,20 +243,23 @@ func moveLinkOut(containerNs ns.NetNS, ifName string) error {
 	defer defaultNs.Close()
 
 	return containerNs.Do(func(_ ns.NetNS) error {
-		dev, err := netlink.LinkByName(ifName)
-		if err != nil {
-			return fmt.Errorf("failed to find %q: %v", ifName, err)
-		}
-
-		// Rename device to it's original name
-		if err := netlink.LinkSetDown(dev); err != nil {
-			return fmt.Errorf("failed to container interface down %q: %v", ifName, err)
-		}
-		if err := netlink.LinkSetName(dev, dev.Attrs().Alias); err != nil {
-			return fmt.Errorf("failed to restore %q to original name %q: %v", ifName, dev.Attrs().Alias, err)
-		}
-		if err := netlink.LinkSetNsFd(dev, int(defaultNs.Fd())); err != nil {
-			return fmt.Errorf("failed to move %q to host netns: %v", dev.Attrs().Alias, err)
+		if dev, err := netlink.LinkByName(ifName); err == nil {
+			// Rename device to it's original name
+			if err := netlink.LinkSetDown(dev); err != nil {
+				return fmt.Errorf("failed to container interface down %q: %v", ifName, err)
+			}
+			if err := netlink.LinkSetName(dev, dev.Attrs().Alias); err != nil {
+				return fmt.Errorf("failed to restore %q to original name %q: %v", ifName, dev.Attrs().Alias, err)
+			}
+			if err := netlink.LinkSetNsFd(dev, int(defaultNs.Fd())); err != nil {
+				return fmt.Errorf("failed to move %q to host netns: %v", dev.Attrs().Alias, err)
+			}
+		} else {
+			// There is a netns so try to clean up. Delete can be called multiple times
+			// so don't return an error if the device is already removed.
+			if err.Error() != "Link not found" {
+				return err
+			}
 		}
 		return nil
 	})

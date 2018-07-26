@@ -173,7 +173,7 @@ func createMacvlan(conf *NetConf, ifName string, netns ns.NetNS) (*current.Inter
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
-	journal.Print(journal.PriInfo, "Macvlan CNI Add")
+	journal.Print(journal.PriWarning, "Macvlan CNI Add")
 	logParam(args)
 
 	n, cniVersion, err := loadConf(args.StdinData)
@@ -259,13 +259,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-	journal.Print(journal.PriInfo, "CNI Response: %s", ResultString(&newResult))
+	journal.Print(journal.PriWarning, "Macvlan Response: %s", ResultString(&newResult))
 	return newResult.Print()
 	//return types.PrintResult(result, cniVersion)
 }
 
 func cmdDel(args *skel.CmdArgs) error {
-	journal.Print(journal.PriInfo, "Host-device CNI Del")
+	journal.Print(journal.PriWarning, "Macvlan CNI Del")
 	logParam(args)
 
 	n, _, err := loadConf(args.StdinData)
@@ -278,8 +278,9 @@ func cmdDel(args *skel.CmdArgs) error {
 		return err
 	}
 
-	if args.Netns == "" {
-		return nil
+	err = ns.IsNSorErr(args.Netns)
+	if err != nil {
+		return fmt.Errorf("failed to open netns %q: %v", args.Netns, err)
 	}
 
 	// There is a netns so try to clean up. Delete can be called multiple times
